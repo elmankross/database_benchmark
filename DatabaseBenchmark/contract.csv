@@ -1,0 +1,10 @@
+﻿id;			Guid;
+int8;		byte;
+int16;		short;
+int32;		int;
+int64;		long;
+decimal;	decimal;
+datetime;	DateTime;
+string_1;	string(250);
+string_2;	string(24);
+boolean;	bool;
