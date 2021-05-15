@@ -59,7 +59,6 @@ namespace Common.Databases
             _logger.Write("[InsertMany] Executing.");
             await using (var writer = await _connection.CreateColumnWriterAsync(_configuration.InsertManyScript, default))
             {
-                using var w = _watcher.Watch(TimeWatcher.Operation.InsertMany);
                 var columnIndex = 0;
                 var columns = rowColumns.Aggregate(new object[columnNames.Length][], (current, column) =>
                 {
@@ -77,7 +76,11 @@ namespace Common.Databases
                     columnIndex++;
                     return current;
                 });
-                await writer.WriteTableAsync(columns, columns.Length, default);
+
+                using (_watcher.Watch(TimeWatcher.Operation.InsertMany))
+                {
+                    await writer.WriteTableAsync(columns, columns.Length, default);
+                }
             };
             _logger.Write("[InsertMany] Executed.");
         }
@@ -96,8 +99,10 @@ namespace Common.Databases
                 command.Parameters.AddWithValue(column.Key, column.Value);
             }
 
-            using var w = _watcher.Watch(TimeWatcher.Operation.InsertOne);
-            await command.ExecuteNonQueryAsync();
+            using (_watcher.Watch(TimeWatcher.Operation.InsertOne))
+            {
+                await command.ExecuteNonQueryAsync();
+            }
             _logger.Write("[InsertOne] Executed.");
         }
 
@@ -114,9 +119,11 @@ namespace Common.Databases
                 command.Parameters.AddWithValue(column.Key, column.Value);
             }
 
-            using var w = _watcher.Watch(TimeWatcher.Operation.Select);
-            var affectedRows = await command.ExecuteNonQueryAsync();
-            _logger.Write("[Select] Executed with " + affectedRows + " rows.");
+            using (_watcher.Watch(TimeWatcher.Operation.Select))
+            {
+                await command.ExecuteNonQueryAsync();
+            }
+            _logger.Write("[Select] Executed.");
         }
 
         /// <summary>

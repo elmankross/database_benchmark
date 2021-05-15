@@ -61,8 +61,10 @@ namespace Common.Databases
                 command.Parameters.AddWithValue(column.Key, column.Value);
             }
 
-            using var w = _watcher.Watch(TimeWatcher.Operation.InsertOne);
-            await command.ExecuteNonQueryAsync();
+            using (_watcher.Watch(TimeWatcher.Operation.InsertOne))
+            {
+                await command.ExecuteNonQueryAsync();
+            }
             _logger.Write("[InsertOne] Executed.");
         }
 
@@ -85,8 +87,10 @@ namespace Common.Databases
                 }
             }
 
-            using var w = _watcher.Watch(TimeWatcher.Operation.InsertMany);
-            await writer.CompleteAsync();
+            using (_watcher.Watch(TimeWatcher.Operation.InsertMany))
+            {
+                await writer.CompleteAsync();
+            }
             _logger.Write("[InsertMany] Executed.");
         }
 
@@ -103,9 +107,11 @@ namespace Common.Databases
                 command.Parameters.AddWithValue(column.Key, column.Value);
             }
 
-            using var w = _watcher.Watch(TimeWatcher.Operation.Select);
-            var affectedRows = await command.ExecuteNonQueryAsync();
-            _logger.Write("[Select] Executed with " + affectedRows + " rows.");
+            using (_watcher.Watch(TimeWatcher.Operation.Select))
+            {
+                await command.ExecuteNonQueryAsync();
+            }
+            _logger.Write("[Select] Executed.");
         }
 
         /// <summary>

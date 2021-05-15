@@ -17,6 +17,7 @@ namespace DatabaseBenchmark
 
         static async Task Main(string[] _)
         {
+            Console.Title = "Databases query time benchmark";
             Console.CancelKeyPress += new ConsoleCancelEventHandler((_, args) =>
             {
                 // to prevent the process from terminating.

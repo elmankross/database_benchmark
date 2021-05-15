@@ -6,14 +6,19 @@ namespace Common
 {
     public sealed class TimeWatcher : IDisposable
     {
-        private int _index;
         private IReadOnlyDictionary<Operation, ushort[]> _buffer;
+        private IDictionary<Operation, ushort> _indexes;
 
         public event EventHandler<KeyValuePair<Operation, ushort[]>> ReceivedRange;
 
-        public TimeWatcher(int bufferSize = 10)
+        public TimeWatcher(int bufferSize = 1 << 6)
         {
-            _index = 0;
+            _indexes = new Dictionary<Operation, ushort>
+            {
+                [Operation.Select] = 0,
+                [Operation.InsertOne] = 0,
+                [Operation.InsertMany] = 0
+            };
             _buffer = new Dictionary<Operation, ushort[]>
             {
                 [Operation.Select] = new ushort[bufferSize],
@@ -24,13 +29,13 @@ namespace Common
 
         internal void AddToRange(Operation operation, ushort value)
         {
-            if (_index == _buffer[operation].Length)
+            if (_indexes[operation] == _buffer[operation].Length)
             {
                 ReceivedRange?.Invoke(this, new KeyValuePair<Operation, ushort[]>(operation, _buffer[operation]));
-                _index = 0;
+                _indexes[operation] = 0;
             }
-
-            _buffer[operation][_index++] = value;
+            
+            _buffer[operation][_indexes[operation]++] = value;
         }
 
 
