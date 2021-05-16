@@ -130,15 +130,11 @@ namespace Common.Databases
         /// 
         /// </summary>
         /// <returns></returns>
-        public async Task SetupAsync(object[][] rowColumns, string[] columnNames)
+        public async Task SetupAsync()
         {
             _logger.Write("[Setup] Executing.");
             using var command = _connection.CreateCommand(_configuration.SetupScript);
             await command.ExecuteNonQueryAsync();
-
-            _logger.Write("[Setup] Preparing table.");
-            await InsertManyAsync(rowColumns, columnNames);
-
             _logger.Write("[Setup] Executed.");
         }
 

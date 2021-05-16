@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "DatabaseBenchmark": {
+      "commandName": "Project",
+      "commandLineArgs": "-wp -wm -we"
+    }
+  }
+}

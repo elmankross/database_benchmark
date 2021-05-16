@@ -11,7 +11,7 @@ namespace Common
 
         public event EventHandler<KeyValuePair<Operation, ushort[]>> ReceivedRange;
 
-        public TimeWatcher(int bufferSize = 1 << 6)
+        public TimeWatcher(int bufferSize = 1 << 5)
         {
             _indexes = new Dictionary<Operation, ushort>
             {

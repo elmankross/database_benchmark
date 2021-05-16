@@ -11,3 +11,6 @@
 	string_2	char(24)			NOT NULL,
 	boolean		boolean				NOT NULL
 );
+
+CREATE INDEX IX_string_1_hash ON stress_test USING HASH(string_1);
+CREATE INDEX IX_string_2_hash ON stress_test USING HASH(string_2);

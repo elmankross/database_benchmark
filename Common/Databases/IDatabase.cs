@@ -9,7 +9,7 @@ namespace Common.Databases
         string Name { get; }
         Writer Writer { get; }
 
-        Task SetupAsync(object[][] rowColumns, string[] columnNames);
+        Task SetupAsync();
         Task TeardownAsync();
         Task SelectAsync(IReadOnlyDictionary<string, object> columns);
         Task InsertOneAsync(IReadOnlyDictionary<string, object> columns);

@@ -24,7 +24,7 @@ namespace Common
         {
             for (var i = 0; i < Buffer.Length; i++)
             {
-                var instance = Buffer[i] = new object[contract.Count];
+                var instance = Buffer[i] ??= new object[contract.Count];
                 var index = 0;
                 foreach (var property in contract)
                 {
@@ -77,6 +77,8 @@ namespace Common
                     value = DateTime.Now;
                     break;
                 case ContractProperty.PropertyType.String:
+                    // FIXME: Very very VARY mem cost operation. 
+                    // It needs a fast & free mem cost operation to get random string
                     var enumeration = Enumerable.Repeat(ALPHABETIC, maxLength)
                             .Select(x => x[_random.Next(ALPHABETIC.Length)])
                             .ToArray();

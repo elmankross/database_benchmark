@@ -15,7 +15,7 @@ namespace DatabaseBenchmark
     {
         private static readonly CancellationTokenSource _token = new CancellationTokenSource();
 
-        static async Task Main(string[] _)
+        static async Task Main(string[] args)
         {
             Console.Title = "Databases query time benchmark";
             Console.CancelKeyPress += new ConsoleCancelEventHandler((_, args) =>
@@ -24,6 +24,29 @@ namespace DatabaseBenchmark
                 args.Cancel = true;
                 _token.Cancel();
             });
+
+            var withPrologue = false;
+            var withMiddle = false;
+            var withEpilogue = false;
+            foreach (var arg in args)
+            {
+                switch (arg)
+                {
+                    case "--withPrologue":
+                    case "-wp":
+                        withPrologue = true;
+                        break;
+                    case "--withMiddle":
+                    case "-wm":
+                        withMiddle = true;
+                        break;
+                    case "--withEpilogue":
+                    case "-we":
+                        withEpilogue = true;
+                        break;
+                }
+            }
+
             var config = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json", optional: false)
                 .AddUserSecrets("8bb2ab70-b359-4ba4-8585-138908b69ee6")
@@ -33,12 +56,30 @@ namespace DatabaseBenchmark
             var sampleSize = config.GetValue<int>("SampleSize");
             var tableSize = config.GetValue<int>("TableSize");
 
-            await Prologue(databases, contract, tableSize);
-            await Middle(databases, contract, sampleSize);
+            if (withPrologue)
+            {
+                try
+                {
+                    await Prologue(databases, contract, tableSize);
+                }
+                catch (Exception)
+                {
+                    await Epilogue(databases);
+                    throw;
+                }
+            }
+
+            if (withMiddle)
+            {
+                await Middle(databases, contract, sampleSize);
+            }
 
             var datas = databases.Select(x => x.Writer.FullPath).ToArray();
 
-            await Epilogue(databases);
+            if (withEpilogue)
+            {
+                await Epilogue(databases);
+            }
 
             foreach (var data in datas)
             {
@@ -52,21 +93,28 @@ namespace DatabaseBenchmark
         /// <returns></returns>
         private static async Task Prologue(IReadOnlyList<IDatabase> databases, Contract contract, int tableSize)
         {
-            var sampler = new Sampler(tableSize);
-            sampler.FillUpWith(contract);
-
             foreach (var database in databases)
             {
-                try
+                await database.SetupAsync();
+            }
+
+            var batchSize = 50_000;
+            var processed = 0;
+            var tasks = new Task[databases.Count];
+
+            while (processed != tableSize && !_token.IsCancellationRequested)
+            {
+                var size = Math.Min(tableSize - processed, batchSize);
+                var sampler = new Sampler(size);
+                sampler.FillUpWith(contract);
+
+                for (var i = 0; i < databases.Count; i++)
                 {
-                    sampler.FillUpWith(contract);
-                    await database.SetupAsync(sampler.Buffer, contract.Names);
+                    tasks[i] = databases[i].InsertManyAsync(sampler.Buffer, contract.Names);
                 }
-                catch (Exception _)
-                {
-                    await database.TeardownAsync();
-                    throw;
-                }
+
+                Task.WaitAll(tasks);
+                processed += size;
             }
         }
 
