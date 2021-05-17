@@ -65,6 +65,11 @@ namespace Common
                     var @long = BitConverter.ToInt64(buffer);
                     value = Math.Abs(@long);
                     break;
+                case ContractProperty.PropertyType.Float:
+                    buffer = new byte[4];
+                    _random.NextBytes(buffer);
+                    value = BitConverter.ToSingle(buffer, 0);
+                    break;
                 case ContractProperty.PropertyType.Decimal:
                     value = new decimal(
                         lo: _random.Next(int.MaxValue),
@@ -74,7 +79,7 @@ namespace Common
                         scale: (byte)_random.Next(10));
                     break;
                 case ContractProperty.PropertyType.DateTime:
-                    value = DateTime.Now;
+                    value = DateTime.UtcNow;
                     break;
                 case ContractProperty.PropertyType.String:
                     // FIXME: Very very VARY mem cost operation. 

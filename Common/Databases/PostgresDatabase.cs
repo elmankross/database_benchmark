@@ -1,6 +1,7 @@
 ﻿using Npgsql;
 using System.Collections.Generic;
 using System.Data;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Common.Databases
@@ -39,10 +40,10 @@ namespace Common.Databases
 
         public async ValueTask DisposeAsync()
         {
-            _logger.Write("[Dispose] Executing.");
+            _logger.Write("[Dispose] Executing");
             await _connection.CloseAsync();
             _watcher.Dispose();
-            _logger.Write("[Dispose] Executed.");
+            _logger.Write("[Dispose] Executed");
             await _logger.DisposeAsync();
             await Writer.DisposeAsync();
         }
@@ -52,9 +53,9 @@ namespace Common.Databases
         /// </summary>
         /// <param name="columns"></param>
         /// <returns></returns>
-        public async Task InsertOneAsync(IReadOnlyDictionary<string, object> columns)
+        public async Task InsertOneAsync(IReadOnlyDictionary<string, object> columns, CancellationToken token = default)
         {
-            _logger.Write("[InsertOne] Executing.");
+            _logger.Write("[InsertOne] Executing");
             using var command = new NpgsqlCommand(_configuration.InsertOneScript, _connection);
             foreach (var column in columns)
             {
@@ -63,9 +64,9 @@ namespace Common.Databases
 
             using (_watcher.Watch(TimeWatcher.Operation.InsertOne))
             {
-                await command.ExecuteNonQueryAsync();
+                await command.ExecuteNonQueryAsync(token);
             }
-            _logger.Write("[InsertOne] Executed.");
+            _logger.Write("[InsertOne] Executed");
         }
 
         /// <summary>
@@ -74,33 +75,33 @@ namespace Common.Databases
         /// <param name="rowColumns"></param>
         /// <param name="columnNames"></param>
         /// <returns></returns>
-        public async Task InsertManyAsync(object[][] rowColumns, string[] columnNames)
+        public async Task InsertManyAsync(object[][] rowColumns, string[] _, CancellationToken token = default)
         {
-            _logger.Write("[InsertMany] Executing.");
+            _logger.Write("[InsertMany] Executing");
             using var writer = _connection.BeginBinaryImport(_configuration.InsertManyScript);
             foreach (var row in rowColumns)
             {
-                await writer.StartRowAsync();
+                await writer.StartRowAsync(token);
                 foreach (var column in row)
                 {
-                    await writer.WriteAsync(column);
+                    await writer.WriteAsync(column, token);
                 }
             }
 
             using (_watcher.Watch(TimeWatcher.Operation.InsertMany))
             {
-                await writer.CompleteAsync();
+                await writer.CompleteAsync(token);
             }
-            _logger.Write("[InsertMany] Executed.");
+            _logger.Write("[InsertMany] Executed");
         }
 
         /// <summary>
         /// 
         /// </summary>
         /// <returns></returns>
-        public async Task SelectAsync(IReadOnlyDictionary<string, object> columns)
+        public async Task SelectAsync(IReadOnlyDictionary<string, object> columns, CancellationToken token = default)
         {
-            _logger.Write("[Select] Executing.");
+            _logger.Write("[Select] Executing");
             using var command = new NpgsqlCommand(_configuration.SelectScript, _connection);
             foreach (var column in columns)
             {
@@ -109,33 +110,33 @@ namespace Common.Databases
 
             using (_watcher.Watch(TimeWatcher.Operation.Select))
             {
-                await command.ExecuteNonQueryAsync();
+                await command.ExecuteNonQueryAsync(token);
             }
-            _logger.Write("[Select] Executed.");
+            _logger.Write("[Select] Executed");
         }
 
         /// <summary>
         /// 
         /// </summary>
         /// <returns></returns>
-        public async Task SetupAsync()
+        public async Task SetupAsync(CancellationToken token = default)
         {
-            _logger.Write("[Setup] Executing.");
+            _logger.Write("[Setup] Executing");
             using var command = new NpgsqlCommand(_configuration.SetupScript, _connection);
-            await command.ExecuteNonQueryAsync();
-            _logger.Write("[Setup] Executed.");
+            await command.ExecuteNonQueryAsync(token);
+            _logger.Write("[Setup] Executed");
         }
 
         /// <summary>
         /// 
         /// </summary>
         /// <returns></returns>
-        public async Task TeardownAsync()
+        public async Task TeardownAsync(CancellationToken token = default)
         {
-            _logger.Write("[Teardown] Executing.");
+            _logger.Write("[Teardown] Executing");
             using var command = new NpgsqlCommand(_configuration.TeardownScript, _connection);
-            await command.ExecuteNonQueryAsync();
-            _logger.Write("[Teardown] Executed.");
+            await command.ExecuteNonQueryAsync(token);
+            _logger.Write("[Teardown] Executed");
         }
     }
 }

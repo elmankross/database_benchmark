@@ -2,7 +2,7 @@
   "profiles": {
     "DatabaseBenchmark": {
       "commandName": "Project",
-      "commandLineArgs": "-wp -wm -we"
+      "commandLineArgs": "-all"
     }
   }
 }

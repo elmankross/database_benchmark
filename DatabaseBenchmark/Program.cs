@@ -13,7 +13,7 @@ namespace DatabaseBenchmark
 {
     class Program
     {
-        private static readonly CancellationTokenSource _token = new CancellationTokenSource();
+        private static readonly CancellationTokenSource _cancellationSource = new CancellationTokenSource();
 
         static async Task Main(string[] args)
         {
@@ -22,7 +22,7 @@ namespace DatabaseBenchmark
             {
                 // to prevent the process from terminating.
                 args.Cancel = true;
-                _token.Cancel();
+                _cancellationSource.Cancel();
             });
 
             var withPrologue = false;
@@ -32,6 +32,9 @@ namespace DatabaseBenchmark
             {
                 switch (arg)
                 {
+                    case "-all":
+                        withPrologue = withMiddle = withEpilogue = true;
+                        break;
                     case "--withPrologue":
                     case "-wp":
                         withPrologue = true;
@@ -74,16 +77,16 @@ namespace DatabaseBenchmark
                 await Middle(databases, contract, sampleSize);
             }
 
-            var datas = databases.Select(x => x.Writer.FullPath).ToArray();
+            var datas = databases.ToDictionary(x => x.Name, x => x.Writer.FullPath);
 
             if (withEpilogue)
             {
                 await Epilogue(databases);
             }
 
-            foreach (var data in datas)
+            foreach (var (name, path) in datas)
             {
-                GnuPlot.GnuPlot.With(data).Open();
+                GnuPlot.GnuPlot.With(path, name).Open();
             }
         }
 
@@ -95,14 +98,14 @@ namespace DatabaseBenchmark
         {
             foreach (var database in databases)
             {
-                await database.SetupAsync();
+                await database.SetupAsync(_cancellationSource.Token);
             }
 
             var batchSize = 50_000;
             var processed = 0;
             var tasks = new Task[databases.Count];
 
-            while (processed != tableSize && !_token.IsCancellationRequested)
+            while (processed != tableSize && !_cancellationSource.IsCancellationRequested)
             {
                 var size = Math.Min(tableSize - processed, batchSize);
                 var sampler = new Sampler(size);
@@ -110,10 +113,18 @@ namespace DatabaseBenchmark
 
                 for (var i = 0; i < databases.Count; i++)
                 {
-                    tasks[i] = databases[i].InsertManyAsync(sampler.Buffer, contract.Names);
+                    tasks[i] = databases[i].InsertManyAsync(sampler.Buffer, contract.Names, _cancellationSource.Token);
                 }
 
-                Task.WaitAll(tasks);
+                try
+                {
+                    Task.WaitAll(tasks);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+
                 processed += size;
             }
         }
@@ -129,7 +140,15 @@ namespace DatabaseBenchmark
             {
                 tasks[i] = ExecuteBenchmarkBodyAsync(databases[i], contract, sampleSize);
             }
-            await Task.WhenAll(tasks);
+
+            try
+            {
+                await Task.WhenAll(tasks);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
         }
 
         /// <summary>
@@ -142,7 +161,7 @@ namespace DatabaseBenchmark
             var index = 0;
             Dictionary<string, object>[] cache = null;
 
-            while (!_token.IsCancellationRequested)
+            while (!_cancellationSource.IsCancellationRequested)
             {
                 var tinySampler = new Sampler(1);
                 tinySampler.FillUpWith(contract);
@@ -156,9 +175,9 @@ namespace DatabaseBenchmark
                     cache = TranslateDataToContract(massiveSampler.Buffer, contract);
                 }
 
-                await database.InsertManyAsync(massiveSampler.Buffer, contract.Names);
-                await database.SelectAsync(cache[random.Next(cache.Length)]);
-                await database.InsertOneAsync(singleModel);
+                await database.InsertManyAsync(massiveSampler.Buffer, contract.Names, _cancellationSource.Token);
+                await database.SelectAsync(cache[random.Next(cache.Length)], _cancellationSource.Token);
+                await database.InsertOneAsync(singleModel, _cancellationSource.Token);
 
                 await Task.Delay(10);
                 index++;
@@ -172,10 +191,17 @@ namespace DatabaseBenchmark
         /// <returns></returns>
         private static async Task Epilogue(IReadOnlyList<IDatabase> databases)
         {
-            for (var i = 0; i < databases.Count; i++)
+            try
             {
-                await databases[i].TeardownAsync();
-                await databases[i].DisposeAsync();
+                for (var i = 0; i < databases.Count; i++)
+                {
+                    await databases[i].TeardownAsync(_cancellationSource.Token);
+                    await databases[i].DisposeAsync();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                return;
             }
         }
 
@@ -214,10 +240,9 @@ namespace DatabaseBenchmark
         private static Contract GetContract(IConfigurationSection config)
         {
             var contract = new Contract();
-            var contractPath = config.Value;
             var index = 0;
 
-            foreach (var line in File.ReadLines(contractPath))
+            foreach (var line in File.ReadLines(config.Value))
             {
                 var parts = line.Split(';', StringSplitOptions.RemoveEmptyEntries);
                 var name = parts[0].Trim();
@@ -254,7 +279,7 @@ namespace DatabaseBenchmark
         /// <param name="limit"></param>
         /// <returns></returns>
         private static Dictionary<string, object>[] TranslateDataToContract(object[][] data, Contract contract, int limit = 100)
-            => data.Take(100)
+            => data.Take(limit)
                    .Select((row) => row
                        .Select((value, index) => new KeyValuePair<string, object>(contract[index].Name, value))
                        .ToDictionary(x => x.Key, x => x.Value))

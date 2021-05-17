@@ -1,7 +1,9 @@
 ﻿using Octonica.ClickHouseClient;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Common.Databases
@@ -40,10 +42,10 @@ namespace Common.Databases
 
         public async ValueTask DisposeAsync()
         {
-            _logger.Write("[Dispose] Executing.");
+            _logger.Write("[Dispose] Executing");
             await _connection.CloseAsync();
             _watcher.Dispose();
-            _logger.Write("[Dispose] Executed.");
+            _logger.Write("[Dispose] Executed");
             await _logger.DisposeAsync();
             await Writer.DisposeAsync();
         }
@@ -54,10 +56,10 @@ namespace Common.Databases
         /// <param name="rowColumns"></param>
         /// <param name="columnNames"></param>
         /// <returns></returns>
-        public async Task InsertManyAsync(object[][] rowColumns, string[] columnNames)
+        public async Task InsertManyAsync(object[][] rowColumns, string[] columnNames, CancellationToken token = default)
         {
-            _logger.Write("[InsertMany] Executing.");
-            await using (var writer = await _connection.CreateColumnWriterAsync(_configuration.InsertManyScript, default))
+            _logger.Write("[InsertMany] Executing");
+            await using (var writer = await _connection.CreateColumnWriterAsync(_configuration.InsertManyScript, token))
             {
                 var columnIndex = 0;
                 var columns = rowColumns.Aggregate(new object[columnNames.Length][], (current, column) =>
@@ -79,10 +81,10 @@ namespace Common.Databases
 
                 using (_watcher.Watch(TimeWatcher.Operation.InsertMany))
                 {
-                    await writer.WriteTableAsync(columns, columns.Length, default);
+                    await writer.WriteTableAsync(columns, columns.Length, token);
                 }
             };
-            _logger.Write("[InsertMany] Executed.");
+            _logger.Write("[InsertMany] Executed");
         }
 
         /// <summary>
@@ -90,10 +92,10 @@ namespace Common.Databases
         /// </summary>
         /// <param name="columns"></param>
         /// <returns></returns>
-        public async Task InsertOneAsync(IReadOnlyDictionary<string, object> columns)
+        public async Task InsertOneAsync(IReadOnlyDictionary<string, object> columns, CancellationToken token = default)
         {
-            _logger.Write("[InsertOne] Executing.");
-            using var command = _connection.CreateCommand(_configuration.InsertManyScript);
+            _logger.Write("[InsertOne] Executing");
+            using var command = _connection.CreateCommand(_configuration.InsertOneScript);
             foreach (var column in columns)
             {
                 command.Parameters.AddWithValue(column.Key, column.Value);
@@ -101,18 +103,18 @@ namespace Common.Databases
 
             using (_watcher.Watch(TimeWatcher.Operation.InsertOne))
             {
-                await command.ExecuteNonQueryAsync();
+                await command.ExecuteNonQueryAsync(token);
             }
-            _logger.Write("[InsertOne] Executed.");
+            _logger.Write("[InsertOne] Executed");
         }
 
         /// <summary>
         /// 
         /// </summary>
         /// <returns></returns>
-        public async Task SelectAsync(IReadOnlyDictionary<string, object> columns)
+        public async Task SelectAsync(IReadOnlyDictionary<string, object> columns, CancellationToken token = default)
         {
-            _logger.Write("[Select] Executing.");
+            _logger.Write("[Select] Executing");
             using var command = _connection.CreateCommand(_configuration.SelectScript);
             foreach (var column in columns)
             {
@@ -121,33 +123,38 @@ namespace Common.Databases
 
             using (_watcher.Watch(TimeWatcher.Operation.Select))
             {
-                await command.ExecuteNonQueryAsync();
+                await command.ExecuteNonQueryAsync(token);
             }
-            _logger.Write("[Select] Executed.");
+            _logger.Write("[Select] Executed");
         }
 
         /// <summary>
         /// 
         /// </summary>
         /// <returns></returns>
-        public async Task SetupAsync()
+        public async Task SetupAsync(CancellationToken token = default)
         {
-            _logger.Write("[Setup] Executing.");
+            _logger.Write("[Setup] Executing");
             using var command = _connection.CreateCommand(_configuration.SetupScript);
-            await command.ExecuteNonQueryAsync();
-            _logger.Write("[Setup] Executed.");
+            await command.ExecuteNonQueryAsync(token);
+            _logger.Write("[Setup] Executed");
         }
 
         /// <summary>
         /// 
         /// </summary>
         /// <returns></returns>
-        public async Task TeardownAsync()
+        public async Task TeardownAsync(CancellationToken token = default)
         {
-            _logger.Write("[Teardown] Executing.");
+            _logger.Write("[Teardown] Executing");
             using var command = _connection.CreateCommand(_configuration.TeardownScript);
-            await command.ExecuteNonQueryAsync();
-            _logger.Write("[Teardown] Executed.");
+
+            // sudenly it closes internally 
+            await _connection.CloseAsync();
+            await _connection.OpenAsync();
+            await command.ExecuteNonQueryAsync(token);
+
+            _logger.Write("[Teardown] Executed");
         }
     }
 }

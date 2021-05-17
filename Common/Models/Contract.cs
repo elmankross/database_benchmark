@@ -26,6 +26,7 @@ namespace Common.Models
             Short,
             Int,
             Long,
+            Float,
             Decimal,
             DateTime,
             String,

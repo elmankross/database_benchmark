@@ -10,7 +10,7 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="5.0.0" />
     <PackageReference Include="Npgsql" Version="5.0.5" />
-    <PackageReference Include="Octonica.ClickHouseClient" Version="1.1.9" />
+    <PackageReference Include="Octonica.ClickHouseClient" Version="1.1.11-rc" />
   </ItemGroup>
 
 </Project>

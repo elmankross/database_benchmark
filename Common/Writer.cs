@@ -90,7 +90,7 @@ namespace Common
             using (var writer = new StreamWriter(_stream, leaveOpen: true))
             {
                 var empty = false;
-                for (var row = 0; ; row += 0x03)
+                for (var row = 0; ; row += 0x03) // ???? 0x05 ??? 0x04 int + LT (0x01)
                 {
                     var lineBuffer = new string[_buffers.Length];
                     for (var column = 0; column < _buffers.Length; column++)
@@ -101,7 +101,7 @@ namespace Common
                         // save information about full processed buffer position
                         if (columnValue == null)
                         {
-                            // it's empty value in line. Needs to revert prev buffers to return used values to line
+                            // it's empty value in line. Needs to revert prev buffers to return used values to the line
                             for (var j = column - 1; j >= 0; j--)
                             {
                                 _buffers[j].Seek(-1, SeekOrigin.Current);
