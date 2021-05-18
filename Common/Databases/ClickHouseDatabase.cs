@@ -83,7 +83,7 @@ namespace Common.Databases
                 {
                     await writer.WriteTableAsync(columns, columns.Length, token);
                 }
-            };
+            }
             _logger.Write("[InsertMany] Executed");
         }
 
